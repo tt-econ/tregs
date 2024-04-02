@@ -191,6 +191,8 @@ version 11
 
         simplify_fraction, frac(`mostlinear_k'/99)
         local mostlinear_spec = e(simplified_frac)
+        local mostlinear_numerator = e(numerator)
+        local mostlinear_denominator = e(denominator)
 
         di as result "Power with the highest p-value in the RESET specification test: `mostlinear_spec'"
 
@@ -246,7 +248,7 @@ version 11
     else {
         local predy_lab "Predicted y: At specified"
     }
-    local rownames `rownames' `"predy_lab"'
+    local rownames `rownames' `"`predy_lab'"'
     local rownames = substr(`""`rownames'"', 3, .)
 
     mat rownames Untransformed = `rownames'
@@ -563,7 +565,7 @@ version 11
     ereturn local regopts "`regopts'"
     ereturn local absorb_option "`absorb_option'"
     if "`mostlinear'" != "" {
-        ereturn local mostlinear_power = "`mostlinear_k'/99"
+        ereturn local mostlinear_power = "`mostlinear_numerator'/`mostlinear_denominator'"
     }
     ereturn local mostlinear "`mostlinear'"
     ereturn local mtitles `colnames'
