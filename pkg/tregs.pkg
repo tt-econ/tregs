@@ -1,0 +1,7 @@
+d tregs: Linear regression with transformed dependent variable
+d Linh Tô, Boston University and Neil Thakral, Brown University
+d
+f tregs.ado
+f treg.ado
+f tregs.sthlp
+e
