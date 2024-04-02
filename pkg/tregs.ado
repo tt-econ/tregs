@@ -1,4 +1,4 @@
-*! version 2.0.0 31mar2024
+*! version 2.0.1 1apr2024
 
 program define tregs, sortpreserve eclass
 version 11
@@ -71,7 +71,7 @@ version 11
         local reg_command reg
     }
     // robust SE by default
-    if strpos("`regopts'", "vce") == 0 {
+    if (strpos("`regopts'", "vce") == 0) & (strpos("`regopts'", "robust") == 0) {
         local regopts `regopts' vce(robust)
     }
     // need resid
@@ -79,6 +79,7 @@ version 11
         local regopts `regopts' resid
     }
     // no-resid regopts version
+    local regopts_nores `regopts'
     local count_regopts: word count `regopts'
     forval i = 1/`count_regopts' {
         local opt: word `i' of `regopts'
@@ -304,13 +305,18 @@ version 11
                 local tnobs = r(N)
                 if `tnobs' < `nobs' {
                     local dropped = `nobs' - `tnobs'
-                    noisily disp as result in smcl "Note: `dropped' number of observations dropped after the transformation."
+                    noisily disp as result in smcl "Note: `dropped' observations were dropped after the transformation."
                 }
 
                 local regstore "eststo `reg_pre'`specname':"
 
                 * Run regression
-                `regstore' `reg_command' `ty_`specname'' `cnames' `if' `in' [`weight'`exp'], `regopts' `absorb_option'
+                capture `regstore' `reg_command' `ty_`specname'' `cnames' `if' `in' [`weight'`exp'], `regopts' `absorb_option'
+
+                if (_rc != 0) {
+                    noisily `regstore' `reg_command' `ty_`specname'' `cnames' `if' `in' [`weight'`exp'], `regopts' `absorb_option'
+                }
+
                 qui estimates store `reg_pre'`specname'
 
                 tempvar resid
@@ -455,7 +461,12 @@ version 11
                     estimates restore `reg_pre'`specname'
 
                     tempvar ty_hat
-                    predict double `ty_hat' `if' `in'
+                    if ("`reg_command'" == "reghdfe") {
+                        predict double `ty_hat' `if' `in', xbd
+                    }
+                    else {
+                        predict double `ty_hat' `if' `in'
+                    }
                 }
 
                 * Evaluate model specification
@@ -604,10 +615,17 @@ program p_k, rclass
     quietly {
         tempvar ty
         gen `ty' = ( (abs(`depvar'))^(`spec') * (2*((`spec') > 0) - 1) ) * ( 2 * (`depvar' > 0) - 1 )
-        `reg_command' `ty' `cnames' `if_opts' `in_opts' [`weightopts'], `regopts' `absorb_option'
 
         tempvar ty_hat
-        predict `ty_hat' `if_opts' `in_opts'
+
+        if ("`reg_command'" == "reghdfe") {
+            `reg_command' `ty' `cnames' `if_opts' `in_opts' [`weightopts'], `regopts' `absorb_option' resid
+            predict double `ty_hat' `if_opts' `in_opts', xbd
+        }
+        else {
+            `reg_command' `ty' `cnames' `if_opts' `in_opts' [`weightopts'], `regopts' `absorb_option'
+            predict double `ty_hat' `if_opts' `in_opts'
+        }
 
         tempvar yh yh2 yh3 yh4
         summ `ty_hat'

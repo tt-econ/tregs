@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 2.0.0 31mar2024}{...}
+{* *! version 2.0.1 1apr2024}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "Help wreckitreg" "help wreckitreg"}{...}
 {vieweralsosee "Help reghdfe" "help reghdfe"}{...}
@@ -148,7 +148,7 @@ The transformations supported by this package (log and power) are the only choic
 {stata tregs change L.high L.low volume, pow(1 1/2 1/3 1/4 1/5 1/6 1/7) xvar(volume) log mostlinear reset}
 
 {stata sysuse nlsw88, clear}
-{stata tregs wage i.race married, absorb(ttl_exp age tenure) xvar(grade) xvar_at(12) log reset regopts(vce(cluster age))}
+{stata tregs wage i.race, absorb(ttl_exp#age) xvar(grade) xvar_at(12) log reset regopts(vce(cluster age)) mostlinear}
 
 
 {marker references}{...}

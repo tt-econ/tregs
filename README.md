@@ -31,6 +31,14 @@ From Stata:
 In Stata, after installation:
 
 ```
+sysuse sp500, clear
+tsset date
+tregs change L.high L.low, xvar(volume) log mostlinear reset
+```
+
+Example output:
+
+```
 . sysuse sp500, clear
 (S&P 500)
 
