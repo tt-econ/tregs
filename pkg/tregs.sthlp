@@ -116,7 +116,7 @@ The transformations supported by this package (log and power) are the only choic
 {opt noa:bsorb} allows the use of {help reghdfe} even when there are no fixed effects, for example, to leverage multi-way clustering. One cannot specify both {opt a:bsorb(string)} and {opt noa:bsorb} at the same time.
 
 {phang}
-{opt regopts(string)} allows options to be passed to {help reghdfe} (when either {opt a:bsorb(string)} or {opt noa:bsorb} is specified) or to {help regress}.
+{opt regopts(string)} allows options to be passed to {help reghdfe} (when either {opt a:bsorb(string)} or {opt noa:bsorb} is specified) or to {help regress}. Note that if clustering is not specified, {bf:vce(robust)} will be added by default.
 
 {dlgtab:Specification Tests}
 
