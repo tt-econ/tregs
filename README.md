@@ -92,8 +92,6 @@ Standard errors in parentheses
 
 See the help file for more: In Stata, type `help tregs` after installation.
 
-Also see the [package's page](https://tt-econ.github.io/tregs) for more detailed examples and how to access returned results.
-
 ## References
 
 The package implements the recommendations of the following paper, which shows that log and power are the only transformations for OLS that result in estimates that do not depend on the scaling of the data:
@@ -108,8 +106,11 @@ Formulas for the semi-elasticities and elasticities can be found in the paper ab
 
 - [Linh T. Tô](https://linh.to) (linhto@bu.edu)
 - [Neil Thakral](https://neilthakral.github.io) (neil_thakral@brown.edu)
+- Michael Briskin
 
-Michael Briskin greatly contributed to the package.
+## Further instructions
+
+See the [package's page](https://tt-econ.github.io/tregs) for more detailed examples and how to access returned results.
 
 
 &nbsp;
