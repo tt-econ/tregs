@@ -1,4 +1,4 @@
-*! version 2.0.1 1apr2024
+*! version 2.0.2 4jan2025
 
 program define tregs, sortpreserve eclass
 version 11
@@ -189,16 +189,18 @@ version 11
 
         local mostlinear_k `mostlinear_k_bounded'
 
-        simplify_fraction, frac(`mostlinear_k'/99)
-        local mostlinear_spec = e(simplified_frac)
-        local mostlinear_numerator = e(numerator)
-        local mostlinear_denominator = e(denominator)
-
-        di as result "Power with the highest p-value in the RESET specification test: `mostlinear_spec'"
-
-        local specnum = `specnum' + 1
-        local speclist `speclist' `mostlinear_spec'
-
+        if (`mostlinear_k' > 0) {
+            simplify_fraction, frac(`mostlinear_k'/99)
+            local mostlinear_spec = e(simplified_frac)
+            local mostlinear_numerator = e(numerator)
+            local mostlinear_denominator = e(denominator)
+            di as result "Power with the highest p-value in the RESET specification test: `mostlinear_spec'"
+            local specnum = `specnum' + 1
+            local speclist `speclist' `mostlinear_spec'
+        }
+        else {
+            di as result "RESET type is not applicable for the powers considered."
+        }
     }
 
     est clear
@@ -362,8 +364,12 @@ version 11
                             local ty_level0 = `ty_`specname'_atmeans' - `beta' * `mean_`xx'' + `beta' * `level0'
                             local ty_level1 = `ty_`specname'_atmeans' - `beta' * `mean_`xx'' + `beta' * `level1'
 
-                            gen double `uty_level0' = abs(`ty_level0' + `resid')^(1/(`spec')) * (2 * (`y' > 0) - 1) `if' `in'
-                            gen double `uty_level1' = abs(`ty_level1' + `resid')^(1/(`spec')) * (2 * (`y' > 0) - 1) `if' `in'
+                            tempvar temp0 temp1
+                            gen double `temp0' = `ty_level0' + `resid'
+                            gen double `temp1' = `ty_level1' + `resid'
+
+                            gen double `uty_level0' = abs(`temp0')^(1/(`spec')) * (2 * (`temp0' > 0) - 1) `if' `in'
+                            gen double `uty_level1' = abs(`temp1')^(1/(`spec')) * (2 * (`temp1' > 0) - 1) `if' `in'
 
                             sum `uty_level0', meanonly
                             local pred0 = r(mean)
@@ -436,12 +442,15 @@ version 11
                 }
 
                 tempvar untransformed_predval
+                tempvar temp
+
+                gen double `temp' = `transformed_predval' + `resid'
 
                 if (lower("`spec'") == "log") {
-                    gen double `untransformed_predval' = exp(`transformed_predval' + `resid') `if' `in'
+                    gen double `untransformed_predval' = exp(`temp') `if' `in'
                 }
                 else {
-                    gen double `untransformed_predval' = abs(`transformed_predval' + `resid')^(1/(`spec')) * (2 * (`y' > 0) - 1) `if' `in'
+                    gen double `untransformed_predval' = abs(`temp')^(1/(`spec')) * (2 * (`temp' > 0) - 1) `if' `in'
                 }
 
                 sum `untransformed_predval', meanonly
@@ -654,7 +663,7 @@ real scalar grid_search_k_init(string scalar depvar, string scalar cnames, strin
     real scalar best_k, current_pvalue, max_pvalue
 
     max_pvalue = -1
-    best_k = min_k
+    best_k = -1
 
     for (k = min_k; k <= max_k; k = k + step_size) {
         current_pvalue = get_pval(k, depvar, cnames, regopts, weightopts, if_opts, in_opts, absorb_option)
