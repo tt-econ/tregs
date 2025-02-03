@@ -1,8 +1,8 @@
-*! version 2.0.2 4jan2025
+*! version 2.1.0 1feb2025
 
 program define tregs, sortpreserve eclass
 version 11
-    syntax varlist(ts fv) [if] [in] [aw fw iw pw], xvar(string) [log xvar_at(string) regopts(string) NOISILY REG_PREfix(string) POWers(string) Absorb(string) NOAbsorb PREDicted_y(string) RESETtest SWILKtest ANDREWstest mostlinear]
+    syntax varlist(ts fv) [if] [in] [aw fw iw pw], xvar(varlist) [log at(string) regopts(string) NOISILY REG_PREfix(string) POWers(string) Absorb(string) NOAbsorb RESETtest SWILKtest ANDREWstest mostlinear]
 
     capture : which estout
     if (_rc) {
@@ -14,18 +14,12 @@ version 11
     local y `: word 1 of `varlist''
     local indepvars: list varlist - y
     local count_xvar: word count `xvar'
-    local count_at: word count `xvar_at'
     local count_powers: word count `powers'
-
-    if (`count_at' != `count_xvar') & (`count_at' > 0) {
-        di as error "The number of values in {it:xvar_at} must match the number of covariates in {it:xvar}."
-        exit 198
-    }
 
     * Check if xvar is subset of covariates
     * If not, issue a warning and add xvar to the set of covariates
     local missingx
-    foreach x in `xvar' {
+    foreach x of varlist `xvar' {
         if !strpos("`indepvars'","`x'") {
             local missingx `missingx' `x'
         }
@@ -38,6 +32,7 @@ version 11
 
     fvexpand `indepvars'
     local cnames `r(varlist)'
+
 
     if "`noisily'"!="" {
         local quietly_noisily noisily
@@ -199,7 +194,7 @@ version 11
             local speclist `speclist' `mostlinear_spec'
         }
         else {
-            di as result "RESET type is not applicable for the powers considered."
+            di as result "RESET test not applicable for the specifications considered."
         }
     }
 
@@ -212,9 +207,6 @@ version 11
     else {
         local reg_pre `reg_prefix'
     }
-
-    fvexpand `xvar'
-    local xvar_fv `r(varlist)'
 
     // Matrix for semi-elasticity, elasticity, and predicted value of y
     matrix Untransformed = J(2 * `count_xvar' + 1, `specnum', .)
@@ -239,17 +231,13 @@ version 11
     local colnames = substr(`""`colnames'"', 3, .)
 
     foreach t in "Semi-elasticity" "Elasticity" {
-        foreach x of varlist `xvar_fv' {
+        foreach x of varlist `xvar' {
             local row `""`t': `x'""'
             local rownames `rownames' `row'
         }
     }
-    if "`predicted_y'" == "" {
-        local predy_lab "Predicted y: At means"
-    }
-    else {
-        local predy_lab "Predicted y: At specified"
-    }
+
+    local predy_lab "Predicted y (`y')"
     local rownames `rownames' `"`predy_lab'"'
     local rownames = substr(`""`rownames'"', 3, .)
 
@@ -258,21 +246,14 @@ version 11
 
     local scalars_tregs "X"
     * Access variable labels and means
-    foreach x of varlist `xvar_fv' {
-        if strpos("`x'", ".") > 0 {
-            local xx: subinstr local x "." "_", all
-        }
-        else {
-            local xx `x'
-        }
-
-        capture local lab_`xx': variable label `x'
-        if "`lab_`xx''" == "" {
-            local lab_`xx' `x'
+    foreach x of varlist `xvar' {
+        capture local lab_`x': variable label `x'
+        if "`lab_`x''" == "" {
+            local lab_`x' `x'
         }
 
         quietly sum `x', meanonly
-        local mean_`xx' = r(mean)
+        local mean_`x' = r(mean)
     }
 
     qui count if `touse' & !mi(`y')
@@ -328,41 +309,75 @@ version 11
 
                 * Estimate semi-elasticity and save results
 
-                margins `if' `in', atmeans predict() nose
-                local ty_`specname'_atmeans = r(b)[1, 1]
+                if ("`at'" == "") {
+                    margins `if' `in', atmeans predict() nose
+                }
+                else {
+                    margins `if' `in', at(`at') predict() nose
+                }
+                local ty_`specname'_at = r(b)[1, 1]
+                if (`=colsof(r(b))' > 1) {
+                    disp as error "Invalid {it:at} specification. Should specify only one point to be evaluated at."
+                    exit 198
+                }
+                matrix r_at = r(at)
 
                 local ix 0
-                foreach x of varlist `xvar_fv' {
-                    if strpos("`x'", ".") > 0 {
-                        local xx: subinstr local x "." "_", all
+                foreach x of varlist `xvar' {
+                    noisily disp as text "  - Computing semi-elasticity and elasticity with respect to `x'"
+
+                    cap local x_at = r_at["r1", "`x'"]
+                    if (_rc != 0) {
+                        local x_at = `mean_`x''
                     }
                     else {
-                        local xx `x'
+                        if (`x_at' == .) {
+                            local x_at = `mean_`x''
+                        }
                     }
-
-                    noisily disp as text "  - Computing semi-elasticity and elasticity with respect to `x'"
 
                     local ix = `ix' + 1
 
-                    local beta = _b[`x']
-
-                    // semi-elasticity
-                    * Check if xvar is binary. if yes, semi-elasticity formula is different
                     capture qui levelsof `x', local(levels)
                     local count_levels: word count `levels'
+                    if (`count_levels' == 2) {
+                        local level0: word 1 of `levels'
+                        local level1: word 2 of `levels'
+                    }
+
+                    cap local beta = _b[`x']
+                    if (_rc != 0) {
+                        if (`count_levels' != 2) {
+                            disp as error "Invalid specification for `x' as an {it:xvar}. `x' is a factor variable but is not binary."
+                            exit 198
+                        }
+                        if (`count_levels' == 2) {
+                            cap local beta = _b[`level1'.`x']
+                            local lab : value label sex
+                            if ("`lab'" != "") {
+                                local lab_`x' `: label `lab' `level1''
+                            }
+                            if (_rc != 0) {
+                                local beta = _b[`level0'.`x']
+                                if ("`lab'" != "") {
+                                    local lab_`x' `: label `lab' `level0''
+                                }
+                            }
+                        }
+                    }
+
+                    // semi-elasticity
+                    * Check if xvar is binary, semi-elasticity formula is different
 
                     if (`count_levels' == 2) {
                         if (lower("`spec'") == "log") {
                             scalar semi_elasticity = exp(`beta') - 1
                         }
                         else {
-                            local level0: word 1 of `levels'
-                            local level1: word 2 of `levels'
-
                             tempvar uty_level0 uty_level1
 
-                            local ty_level0 = `ty_`specname'_atmeans' - `beta' * `mean_`xx'' + `beta' * `level0'
-                            local ty_level1 = `ty_`specname'_atmeans' - `beta' * `mean_`xx'' + `beta' * `level1'
+                            local ty_level0 = `ty_`specname'_at' - `beta' * `x_at' + `beta' * `level0'
+                            local ty_level1 = `ty_`specname'_at' - `beta' * `x_at' + `beta' * `level1'
 
                             tempvar temp0 temp1
                             gen double `temp0' = `ty_level0' + `resid'
@@ -385,27 +400,13 @@ version 11
                             local semi_elasticity = `beta'
                         }
                         else {
-                            if (`count_at' > 0) {
-                                local atval: word `ix' of `xvar_at'
-
-                                if ("`atval'" == "atmeans") {
-                                    local semi_elasticity = `beta'/(`spec')/`ty_`specname'_atmeans'
-                                }
-                                else {
-                                    local ty_`specname'_at = `ty_`specname'_atmeans' - `beta' * `mean_`xx'' + `beta' * `atval'
-
-                                    local semi_elasticity = `beta'/(`spec')/`ty_`specname'_at'
-                                }
-                            }
-                            else {
-                                local semi_elasticity = `beta'/(`spec')/`ty_`specname'_atmeans'
-                            }
+                            local semi_elasticity = `beta'/(`spec')/`ty_`specname'_at'
                         }
                     }
                     matrix Untransformed[`ix', `ispec'] = `semi_elasticity'
-                    estadd scalar semi_`xx' = `semi_elasticity': `reg_pre'`specname'
-                    local semi_`xx'_label `""semi_`xx' eydx: `lab_`xx''""'
-                    local scalars_tregs `scalars_tregs' `semi_`xx'_label'
+                    estadd scalar semi_`x' = `semi_elasticity': `reg_pre'`specname'
+                    local semi_`x'_label `""semi_`x' eydx: `lab_`x''""'
+                    local scalars_tregs `scalars_tregs' `semi_`x'_label'
 
                     // elasticity
                     if (`count_levels' == 2) {
@@ -413,33 +414,16 @@ version 11
                         local elasticity = .
                     }
                     else {
-                        if (`count_at' > 0) {
-                            local atval: word `ix' of `xvar_at'
-                            if ("`atval'" == "atmeans") {
-                                sum `x', meanonly
-                                local atval = r(mean)
-                            }
-                            local elasticity = `semi_elasticity' * `atval'
-                        }
-                        else {
-                            sum `x', meanonly
-                            local elasticity = `semi_elasticity' * r(mean)
-                        }
+                        local elasticity = `semi_elasticity' * `x_at'
                     }
                     matrix Untransformed[`ix' + `count_xvar', `ispec'] = `elasticity'
-                    estadd scalar elas_`xx' = `elasticity': `reg_pre'`specname'
-                    local elas_`xx'_label `""elas_`xx' eyex: `lab_`xx''""'
-                    local scalars_tregs `scalars_tregs' `elas_`xx'_label'
+                    estadd scalar elas_`x' = `elasticity': `reg_pre'`specname'
+                    local elas_`x'_label `""elas_`x' eyex: `lab_`x''""'
+                    local scalars_tregs `scalars_tregs' `elas_`x'_label'
                 }
 
                 * Predicted value at specific Xs or atmeans
-                if ("`predicted_y'" != "" & strtrim("`predicted_y'") != "atmeans") {
-                    margins `if' `in', `predicted_y' predict() nose
-                    local transformed_predval = r(b)[1, 1]
-                }
-                else {
-                    local transformed_predval = `ty_`specname'_atmeans'
-                }
+                local transformed_predval = `ty_`specname'_at'
 
                 tempvar untransformed_predval
                 tempvar temp
@@ -551,10 +535,16 @@ version 11
     }
 
     * Display regression table and specification tests
-    esttab `reg_pre'*, se obslast noconstant label varwidth(25) ///
+    if ("`at'" == "") {
+        local notes "Elasticities and predicted values are evaluated at means"
+    }
+    else {
+        local notes "Elasticities and predicted values are evaluated at `at'"
+    }
+    esttab `reg_pre'*, se obslast noconstant nobase label varwidth(25) ///
         title("Regression Results, Dep. Var: `lab_y'")	///
         mtitles(`colnames') scalars(`scalars_tregs')	///
-        star(* 0.10 ** 0.05 *** 0.01)
+        star(* 0.10 ** 0.05 *** 0.01) addnotes(`notes')
 
     * Display semi-elasticities, elasticities, predicted value
     /* esttab matrix(Untransformed), varwidth(20) modelwidth(15) */
@@ -662,7 +652,7 @@ real scalar grid_search_k_init(string scalar depvar, string scalar cnames, strin
 
     real scalar best_k, current_pvalue, max_pvalue
 
-    max_pvalue = -1
+    max_pvalue = 0
     best_k = -1
 
     for (k = min_k; k <= max_k; k = k + step_size) {

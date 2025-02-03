@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 2.0.1 1apr2024}{...}
+{* *! version 2.1.0 1feb2025}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "Help wreckitreg" "help wreckitreg"}{...}
 {vieweralsosee "Help reghdfe" "help reghdfe"}{...}
@@ -35,9 +35,7 @@
 
 {synopt:{opt xvar(varlist)}}  compute semi-elasticity and elasticity estimates for these independent variables (required)
 
-{synopt:{opt xvar_at(string)}}  compute semi-elasticity and elasticity estimates at specific values of {helpb tregs##xvar:xvar} instead of at means
-
-{synopt:{opt pred:icted_y(string)}} compute the predicted value of {it:depvar} at specified values of covariates (at means of covariates by default); see {help margins##atspec}
+{synopt:{opt at(string)}}  compute semi-elasticity, elasticity, and predicted value at specific covariate values instead of at means
 
 {syntab:Specifications}
 
@@ -91,14 +89,11 @@ The transformations supported by this package (log and power) are the only choic
 
 {marker xvar}{...}
 {phang}
-{opt xvar(varlist)} computes semi-elasticity and elasticity estimates of {it:depvar} with respect to these variables. Any variable included in {opt xvar(varlist)} but not specified in {it:indepvars} will be added as a covariate in all regressions. By default, the semi-elasticity and elasticity estimates are computed at the means of the covariates. To specify other values, see {help tregs##xvar_at:xvar_at}. In the output, semi-elasticities are denoted as {bf:eydx} and elasticities are denoted as {bf:eyex}, following the convention in {help margins}.
+{opt xvar(varlist)} computes semi-elasticity and elasticity estimates of {it:depvar} with respect to these variables. Any variable included in {opt xvar(varlist)} but not specified in {it:indepvars} will be added as a covariate in all regressions. If you want the regressions to treat any particular X variable as a binary variable, then you can use factor variable syntax when specifying the corresponding variable in the {it:indepvars} list in the command. By default, the semi-elasticity and elasticity estimates are computed at the means of the covariates. To specify other values, see {help tregs##at:at}. In the output, semi-elasticities are denoted as {bf:eydx} and elasticities are denoted as {bf:eyex}, following the convention in {help margins}.
 
-{marker xvar_at}{...}
+{marker at}{...}
 {phang}
-{opt xvar_at(string)} provides the option to compute semi-elasticity and elasticity estimates at different values of {opt xvar(varlist)}. When specified, the length of {opt xvar_at(string)} should match that of {opt xvar(varlist)}. For each covariate in {opt xvar(varlist)}, the semi-elasticity and elasticity estimates will be computed at the corresponding value specified in {opt xvar_at(string)}. For example, if {opt xvar(varlist)} is {bf:xvar(age tenure)} and {opt xvar_at(string)} is {bf:xvar_at(35 3)} then the elasticity estimates for {it:age} is evaluated at {it:age==35} and the elasticity estimates for {it:tenure} is evaluated at {it:tenure==3}, with all other covariates evaluated at the means.
-
-{phang}
-{opt pred:icted_y(string)} provides the option to compute the predicted value of the untransformed {it:depvar} at specified values of {it:indepvars}. When this option is not specified, or when {bf:atmeans} is specified, predicted values of the untransformed {it:depvar} are computed at the means of the independent variables. Use the {help margins##atspec} syntax to specify values for covariates at which to compute the predicted value of the untransformed {it:depvar}. The predicted value is obtained from the transformed regression and transformed back into the original units of the dependent variable using the smearing estimate of Duan (1983).
+{opt at(string)} provides the option to compute semi-elasticity, elasticity, and predicted value of the untransformed {it:depvar} at specified values of {it:indepvars}. When this option is not specified, or when {bf:atmeans} is specified, these estimates are computed at the means of the independent variables. Use the {help margins##atspec} syntax to specify values for covariates at which to compute the estimates. The predicted value is obtained from the transformed regression and transformed back into the original units of the dependent variable using the smearing estimate of Duan (1983).
 
 {dlgtab:Specifications}
 
@@ -148,7 +143,7 @@ The transformations supported by this package (log and power) are the only choic
 {stata tregs change L.high L.low volume, pow(1 1/2 1/3 1/4 1/5 1/6 1/7) xvar(volume) log mostlinear reset}
 
 {stata sysuse nlsw88, clear}
-{stata tregs wage i.race, absorb(ttl_exp#age) xvar(grade) xvar_at(12) log reset regopts(vce(cluster age)) mostlinear}
+{stata tregs wage i.race, absorb(ttl_exp#age) xvar(grade) at(grade = 12) log reset regopts(vce(cluster age)) mostlinear}
 
 
 {marker references}{...}
@@ -159,7 +154,7 @@ The package implements the recommendations of the following paper, which shows t
 
 {phang}
 Neil Thakral and Linh T. Tô. "When Are Estimates Independent of Measurement Units?".
-{it:Working paper, 2024.}
+{it:Working paper, 2025.}
 {browse "https://linh.to/files/papers/transformations.pdf":[link]}
 {p_end}
 
@@ -168,7 +163,7 @@ Formulas for the semi-elasticities and elasticities can be found in the paper ab
 
 {phang}
 Neil Thakral and Linh T. Tô. "Scale Equivariance in Regressions".
-{it:Working paper, 2024.}
+{it:Working paper, 2025.}
 {p_end}
 
 See also:
@@ -193,8 +188,8 @@ James Ramsey. "Tests for Specification Errors in Classical Linear Least Squares 
 {p}
 
 Linh Tô, Boston University
-Michael Briskin, Boston University
 Meil Thakral, Brown University
+Michael Briskin, Boston University
 
 Email {browse "mailto:linhto@bu.edu":linhto@bu.edu}
 
